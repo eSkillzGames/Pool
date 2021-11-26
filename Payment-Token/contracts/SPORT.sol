@@ -625,9 +625,9 @@ pragma solidity 0.6.6;
  * Reward for Staking ESG
  * Inflationary – new coins can be created by the DAO for extra in-game rewards
  */
-contract CUE is DeflationaryERC20 {
+contract SPORT is DeflationaryERC20 {
 
-    constructor() public DeflationaryERC20("Cue", "CUE") {
+    constructor() public DeflationaryERC20("Payment Token Sport", "SPORT") {
         _mint(msg.sender, 100000000e18);
     }
 

@@ -1,5 +1,5 @@
 /**
- * ESKILLZ Pool (ESP) is a deflationary currency, designed to reward holders, pump price and discourage bots.
+ * ESKILLZ Pool (ESG) is a deflationary currency, designed to reward holders, pump price and discourage bots.
 */
 
 // Partial License: MIT
@@ -789,26 +789,22 @@ contract DeflationaryERC20 is Context, IERC20, Ownable {
 pragma solidity 0.6.6;
 
 /**
- * ESP is an governance token.
+ * ESG is an governance token.
  * Overview 
  * Financial stake in project
  * Voting power in DAO
  * Control of Treasury
  * Deflationary: details TBC
- * The ESP Token itself is just a standard ERC20, with:
+ * The ESG Token itself is just a standard ERC20, with:
  * No minting afterward.
  * Public burning.
  * Transfer fee applied.
- * Maximum total supply 100000000 ESP
+ * Maximum total supply 100000000 ESG
  */
-contract ESP is DeflationaryERC20 {
+contract ESG is DeflationaryERC20 {
 
-    constructor() public DeflationaryERC20("ESKILLZ Pool", "ESP") {
-        _mint(msg.sender, 0);
-    }
-
-    function mint(uint256 amount) public {
-        _mint(msg.sender, amount);
+    constructor() public DeflationaryERC20("Governance eSkillz Games", "ESG") {
+        _mint(msg.sender, 100000000e18);
     }
 
     function burn(uint256 amount) public {
