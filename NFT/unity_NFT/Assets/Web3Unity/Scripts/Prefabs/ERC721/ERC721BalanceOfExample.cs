@@ -7,16 +7,16 @@ using Newtonsoft.Json;
 
 public class ERC721BalanceOfExample : MonoBehaviour
 {
-    public Text myText;
+    //public Text myText;
     public Text myText2;
     async void Start()
     {
-        string chain = "ethereum";
-        string network = "ropsten";
+        //string chain = "ethereum";
+        //string network = "ropsten";
         string contract = "0x4d040491c71c45aea79a8ae6e8fd8bb0c5a932ec";
         string account = PlayerPrefs.GetString("Account");
         string tokenId = "1";
-        string fromAddress = "0xaE1230b3d256CdB131020CFC68eC962f07dCB897";
+        //string fromAddress = "0xaE1230b3d256CdB131020CFC68eC962f07dCB897";
         string toAddress = "0x0374805cE1Ffc8951265E4f4A1301abdA55314A3";
 
         // // int balance = await ERC721.BalanceOf(chain, network, contract, account);
