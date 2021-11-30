@@ -500,7 +500,7 @@ contract Ownable is Context {
 
 pragma solidity ^0.6.6;
 
-contract DeflationaryERC20 is Context, IERC20, Ownable {
+contract InflationaryERC20 is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -512,12 +512,10 @@ contract DeflationaryERC20 is Context, IERC20, Ownable {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
-    uint256 private _mintedAmount;
     constructor (string memory name, string memory symbol) public {
         _name = name;
         _symbol = symbol;
         _decimals = 18;
-        _mintedAmount = 0;
     }
 
     /**
@@ -581,7 +579,7 @@ contract DeflationaryERC20 is Context, IERC20, Ownable {
 
         _beforeTokenTransfer(address(0), account, amount);
 
-        _mintedAmount = _mintedAmount.add(amount);
+        _totalSupply = _totalSupply.add(amount);
         _balances[account] = _balances[account].add(amount);
         emit Transfer(address(0), account, amount);
     }
@@ -603,15 +601,15 @@ contract DeflationaryERC20 is Context, IERC20, Ownable {
     function _setupDecimals(uint8 decimals_) internal {
         _decimals = decimals_;
     }
-    function setTotalSupply(uint256 totalSupply) public {
-        _totalSupply = totalSupply;
-    }
-    function increaseTotalSupply(uint256 _amount) external {
+    
+    function increaseTotalSupply(uint256 _amount) external onlyOwner {
         _totalSupply = _totalSupply.add(_amount);
     }
-    function mintedAmount() public view returns (uint256) {
-        return _mintedAmount;
-    }
+    
+    function mintMore(uint256 amount) public onlyOwner {
+        require(amount>0, "amount should be bigger than zero");
+        _mint(msg.sender, amount);
+    } 
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
 }
@@ -625,12 +623,12 @@ pragma solidity 0.6.6;
  * Reward for Staking ESG
  * Inflationary – new coins can be created by the DAO for extra in-game rewards
  */
-contract SPORT is DeflationaryERC20 {
+contract SPORT is InflationaryERC20 {
 
-    constructor() public DeflationaryERC20("Payment Token Sport", "SPORT") {
+    constructor() public InflationaryERC20("Payment Token Sport", "SPORT") {
         _mint(msg.sender, 100000000e18);
     }
-
+    
     function burn(uint256 amount) public {
         _burn(msg.sender, amount);
     }

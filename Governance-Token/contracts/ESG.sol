@@ -796,7 +796,7 @@ pragma solidity 0.6.6;
  * Control of Treasury
  * Deflationary: details TBC
  * The ESG Token itself is just a standard ERC20, with:
- * No minting afterward.
+ * minting afterward.
  * Public burning.
  * Transfer fee applied.
  * Maximum total supply 100000000 ESG
@@ -806,7 +806,6 @@ contract ESG is DeflationaryERC20 {
     constructor() public DeflationaryERC20("Governance eSkillz Games", "ESG") {
         _mint(msg.sender, 100000000e18);
     }
-
     function burn(uint256 amount) public {
         _burn(msg.sender, amount);
     }
