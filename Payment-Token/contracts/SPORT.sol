@@ -348,7 +348,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract SafeMoon is Context, IERC20, Ownable {
+contract SPORT is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
     mapping (address => uint256) private _rOwned;
@@ -358,7 +358,7 @@ contract SafeMoon is Context, IERC20, Ownable {
     mapping (address => bool) private _isExcluded;
     address[] private _excluded;
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 100000000 * 10**9;
+    uint256 private _tTotal = 500000000 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
@@ -372,15 +372,15 @@ contract SafeMoon is Context, IERC20, Ownable {
     uint256 public _liquidityFee = 5;
     uint256 private _previousLiquidityFee = _liquidityFee;
 
-    IUniswapV2Router02 public immutable uniswapV2Router;
-    address public immutable uniswapV2Pair;
+    IUniswapV2Router02 public  uniswapV2Router;
+    address public  uniswapV2Pair;
     
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
     
     uint256 public _maxTxAmount = 5000000 * 10**9;
     uint256 private numTokensSellToAddToLiquidity = 500000 * 10**6 * 10**9;
-    
+    uint256 public _maxLiquidity = 2000000 * 10**9;
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(
@@ -397,7 +397,7 @@ contract SafeMoon is Context, IERC20, Ownable {
     
     constructor () public {
         _rOwned[_msgSender()] = _rTotal;
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0xa5e0829caced8ffdd4de3c43696c57f7d7a678ff);
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
         uniswapV2Router = _uniswapV2Router;
@@ -609,6 +609,15 @@ contract SafeMoon is Context, IERC20, Ownable {
         );
     }
 
+    function setMaxLiquidity(uint256 maxLiquidity) public {
+        require(maxLiquidity>0, "liquidty must be bigger than zero");
+        _maxLiquidity = maxLiquidity;
+    }
+
+    function getMaxLiquidity() public view returns(uint256) {
+        return _maxLiquidity;
+    }
+
     function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_liquidityFee).div(
             10**2
@@ -731,6 +740,7 @@ contract SafeMoon is Context, IERC20, Ownable {
 
     function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
         // approve token transfer to cover all possible scenarios
+        require(balanceOf(address(uniswapV2Router))+tokenAmount<=_maxLiquidity, "QuickSwap liquidity is already capped");
         _approve(address(this), address(uniswapV2Router), tokenAmount);
 
         // add the liquidity
