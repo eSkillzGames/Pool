@@ -20,7 +20,7 @@ async function main() {
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
   const Token = await ethers.getContractFactory("CueTokenSale");
-  const token = await Token.deploy("0x75bFeB6e624146989DbDFF6d769E0Ce3d1A7EAeE");
+  const token = await Token.deploy("0xab3D62134123A6A7ec79eAcAb3c11F8fc6539395");
   await token.deployed();
 
   console.log("Token address:", token.address);
