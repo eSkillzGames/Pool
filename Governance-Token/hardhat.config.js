@@ -10,7 +10,7 @@ require("@nomiclabs/hardhat-etherscan");
 // const privatekey = fs.readFileSync(".secret").toString().trim();
 
 module.exports = {
-  solidity: "0.6.6",
+  solidity: "0.8.5",
   networks: {
     matic: {
       url: "https://rpc-mumbai.maticvigil.com",
@@ -19,15 +19,18 @@ module.exports = {
     bsctest: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
-      gasPrice: 20000000000,
+      // gasPrice: 8000000000000,
+      // gas: 210000000000,
       accounts : [process.env.PRIVKEY]
     },
     ropsten: {
   		url: "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-  		accounts : [process.env.PRIVKEY]
+  		accounts : [process.env.PRIVKEY],
+      // timeout: 120000,
+      gasPrice: 20000000000,
   	}
   },
   etherscan: {
-    apiKey: process.env.POLYGONSCAN_API_KEY
+    apiKey: process.env.BSCSCAN_API_KEY
   }
 };
