@@ -609,7 +609,7 @@ contract SPORT is Context, IERC20, Ownable {
         );
     }
 
-    function setMaxLiquidity(uint256 maxLiquidity) public {
+    function setMaxLiquidity(uint256 maxLiquidity) public onlyOwner {
         require(maxLiquidity>0, "liquidty must be bigger than zero");
         _maxLiquidity = maxLiquidity;
     }
