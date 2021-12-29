@@ -21,7 +21,8 @@ module.exports = {
       chainId: 97,
       // gasPrice: 8000000000000,
       // gas: 210000000000,
-      accounts : [process.env.PRIVKEY]
+      accounts : [process.env.PRIVKEY],
+      timeout:200000
     },
     ropsten: {
   		url: "https://ropsten.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",

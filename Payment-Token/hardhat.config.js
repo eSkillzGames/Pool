@@ -10,7 +10,7 @@ require("@nomiclabs/hardhat-etherscan");
 // const privatekey = fs.readFileSync(".secret").toString().trim();
 
 module.exports = {
-  solidity: "0.6.12",
+  solidity: "0.8.5",
   networks: {
     matic: {
       url: "https://rpc-mumbai.maticvigil.com",
