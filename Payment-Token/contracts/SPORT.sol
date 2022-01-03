@@ -139,7 +139,6 @@ contract SPORT is IERC20, Auth {
     using SafeMath for uint256;
     address DEAD = 0x000000000000000000000000000000000000dEaD;
     address ZERO = 0x0000000000000000000000000000000000000000;
-    address DEAD_NON_CHECKSUM = 0x000000000000000000000000000000000000dEaD;
 
     string constant _name = "SPORT";
     string constant _symbol = "SPORT";
@@ -218,11 +217,6 @@ contract SPORT is IERC20, Auth {
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
         uint256 feeAmount = amount.mul(getTotalFee(true)).div(feeDenominator);
         uint256 len = esg.getHoldersLength();
-        //uint256 distributeAmount = feeAmount.div(esg.holderList.length);
-        //_balances[address(this)] = _balances[address(this)].add(feeAmount);
-        //for(uint256 i=0; i< esg.holderList.length;i++) {
-           // _balances[holders[0]] = _balances[holders[0]].add(feeAmount);
-        //}
         return amount.sub(feeAmount);
     }
 
