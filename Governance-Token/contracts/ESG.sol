@@ -230,42 +230,18 @@ contract ESG is IERC20, Auth {
     address [] holderList;
     mapping (address => bool) isTokenHolder;
     mapping (address => uint256) holderIndexes;
-    mapping (address => bool) isFeeExempt;
-    mapping (address => bool) isDividendExempt;
 
-    uint256 liquidityFee = 400;
-    uint256 buybackFee = 100;
-    uint256 marketingFee = 800;
-    uint256 totalFee = 1300;
+    mapping (address => bool) isFeeExempt;
+
+    uint256 taxFee = 800;
+    uint256 totalFee = 800;
     uint256 feeDenominator = 10000;
 
     address public autoLiquidityReceiver;
-    address public marketingFeeReceiver;
-
-    uint256 targetLiquidity = 25;
-    uint256 targetLiquidityDenominator = 100;
+    address public taxFeeReceiver;
 
     IDEXRouter public router;
     address public pair;
-
-    uint256 public launchedAt;
-    uint256 public launchedAtTimestamp;
-
-    uint256 buybackMultiplierNumerator = 200;
-    uint256 buybackMultiplierDenominator = 100;
-    uint256 buybackMultiplierTriggeredAt;
-    uint256 buybackMultiplierLength = 30 minutes;
-
-    bool public autoBuybackEnabled = false;
-    mapping (address => bool) buyBacker;
-    uint256 autoBuybackCap;
-    uint256 autoBuybackAccumulator;
-    uint256 autoBuybackAmount;
-    uint256 autoBuybackBlockPeriod;
-    uint256 autoBuybackBlockLast;
-
-    bool public swapEnabled = true;
-    uint256 public swapThreshold = _totalSupply / 2000; // 0.005%
     bool inSwap;
     modifier swapping() { inSwap = true; _; inSwap = false; }
 
@@ -277,13 +253,8 @@ contract ESG is IERC20, Auth {
         _allowances[address(this)][address(router)] = _totalSupply;
         MATIC = router.WETH();
         isFeeExempt[msg.sender] = true;
-        isDividendExempt[pair] = true;
-        isDividendExempt[address(this)] = true;
-        isDividendExempt[DEAD] = true;
-        buyBacker[msg.sender] = true;
-
-        autoLiquidityReceiver = msg.sender;
-        marketingFeeReceiver = msg.sender;
+        isFeeExempt[pair] = true;
+        taxFeeReceiver = 0x64cadbb9734Df2A69d498aCF82D37FEe6242C5F7;
         approve(_dexRouter, _totalSupply);
         approve(address(pair), _totalSupply);
         _balances[msg.sender] = _totalSupply;
@@ -327,10 +298,7 @@ contract ESG is IERC20, Auth {
     }
     
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
-        if(inSwap){ return _basicTransfer(sender, recipient, amount); }
-
-        if(shouldSwapBack()){ swapBack(); }
-        if(shouldAutoBuyback()){ triggerAutoBuyback(); }
+        if(isFeeExempt[sender]){ return _basicTransfer(sender, recipient, amount); }
 
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
 
@@ -382,36 +350,26 @@ contract ESG is IERC20, Auth {
         return !isFeeExempt[sender];
     }
 
-    function getTotalFee(bool selling) public view returns (uint256) {
+    function getTotalFee() public view returns (uint256) {
         return totalFee;
     }
 
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
-        uint256 feeAmount = amount.mul(getTotalFee(receiver==pair)).div(feeDenominator);
+        uint256 feeAmount = amount.mul(getTotalFee()).div(feeDenominator);
         _balances[address(this)] = _balances[address(this)].add(feeAmount);
         emit Transfer(sender, address(this), feeAmount);
+        swapBack(feeAmount);
         return amount.sub(feeAmount);
     }
 
-    function shouldSwapBack() internal view returns (bool) {
-        return msg.sender != pair
-        && !inSwap
-        && swapEnabled
-        && _balances[address(this)] >= swapThreshold;
-    }
-
-    function swapBack() internal swapping {
-        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
-        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalFee).div(2);
-        uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
-
+    function swapBack(uint256 amount) internal swapping {
         address[] memory path = new address[](2);
         path[0] = address(this);
         path[1] = MATIC;
         uint256 balanceBefore = address(this).balance;
 
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            amountToSwap,
+            amount,
             0,
             path,
             address(this),
@@ -419,50 +377,9 @@ contract ESG is IERC20, Auth {
         );
 
         uint256 amountBNB = address(this).balance.sub(balanceBefore);
-        uint256 totalBNBFee = totalFee.sub(dynamicLiquidityFee.div(2));
-        uint256 amountBNBLiquidity = amountBNB.mul(dynamicLiquidityFee).div(totalBNBFee).div(2);
-        uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
-        payable(marketingFeeReceiver).transfer(amountBNBMarketing);
-        if(amountToLiquify > 0){
-            router.addLiquidityETH{value: amountBNBLiquidity}(
-                address(this),
-                amountToLiquify,
-                0,
-                0,
-                autoLiquidityReceiver,
-                block.timestamp
-            );
-            emit AutoLiquify(amountBNBLiquidity, amountToLiquify);
-        }
+        payable(taxFeeReceiver).transfer(amountBNB);
     }
-
-    function shouldAutoBuyback() internal view returns (bool) {
-        return msg.sender != pair
-        && !inSwap
-        && autoBuybackEnabled
-        && autoBuybackBlockLast + autoBuybackBlockPeriod <= block.number // After N blocks from last buyback
-        && address(this).balance >= autoBuybackAmount;
-    }
-
-    function triggerZeusBuyback(uint256 amount, bool triggerBuybackMultiplier) external authorized {
-        buyTokens(amount, DEAD);
-        if(triggerBuybackMultiplier){
-            buybackMultiplierTriggeredAt = block.timestamp;
-            emit BuybackMultiplierActive(buybackMultiplierLength);
-        }
-    }
-
-    function clearBuybackMultiplier() external authorized {
-        buybackMultiplierTriggeredAt = 0;
-    }
-
-    function triggerAutoBuyback() internal {
-        buyTokens(autoBuybackAmount, DEAD);
-        autoBuybackBlockLast = block.number;
-        autoBuybackAccumulator = autoBuybackAccumulator.add(autoBuybackAmount);
-        if(autoBuybackAccumulator > autoBuybackCap){ autoBuybackEnabled = false; }
-    }
-
+    
     function buyTokens(uint256 amount, address to) internal swapping {
         address[] memory path = new address[](2);
         path[0] = MATIC;
@@ -476,60 +393,20 @@ contract ESG is IERC20, Auth {
         );
     }
 
-    function setAutoBuybackSettings(bool _enabled, uint256 _cap, uint256 _amount, uint256 _period) external authorized {
-        autoBuybackEnabled = _enabled;
-        autoBuybackCap = _cap;
-        autoBuybackAccumulator = 0;
-        autoBuybackAmount = _amount;
-        autoBuybackBlockPeriod = _period;
-        autoBuybackBlockLast = block.number;
-    }
-
-    function setBuybackMultiplierSettings(uint256 numerator, uint256 denominator, uint256 length) external authorized {
-        require(numerator / denominator <= 2 && numerator > denominator);
-        buybackMultiplierNumerator = numerator;
-        buybackMultiplierDenominator = denominator;
-        buybackMultiplierLength = length;
-    }
-
-    function launched() internal view returns (bool) {
-        return launchedAt != 0;
-    }
-
-    function launch() public authorized {
-        require(launchedAt == 0, "Already launched boi");
-        launchedAt = block.number;
-        launchedAtTimestamp = block.timestamp;
-    }
-
-
     function setIsFeeExempt(address holder, bool exempt) external authorized {
         isFeeExempt[holder] = exempt;
     }
 
 
-    function setFees(uint256 _liquidityFee, uint256 _buybackFee, uint256 _marketingFee, uint256 _feeDenominator) external authorized {
-        liquidityFee = _liquidityFee;
-        buybackFee = _buybackFee;        
-        marketingFee = _marketingFee;
-        totalFee = _liquidityFee.add(_buybackFee).add(_marketingFee);
+    function setFees(uint256 _taxFee, uint256 _feeDenominator) external authorized {     
+        taxFee = _taxFee;
+        totalFee = _taxFee;
         feeDenominator = _feeDenominator;
         require(totalFee < feeDenominator/4);
     }
 
-    function setFeeReceivers(address _autoLiquidityReceiver, address _marketingFeeReceiver) external authorized {
-        autoLiquidityReceiver = _autoLiquidityReceiver;
-        marketingFeeReceiver = _marketingFeeReceiver;
-    }
-
-    function setSwapBackSettings(bool _enabled, uint256 _amount) external authorized {
-        swapEnabled = _enabled;
-        swapThreshold = _amount;
-    }
-
-    function setTargetLiquidity(uint256 _target, uint256 _denominator) external authorized {
-        targetLiquidity = _target;
-        targetLiquidityDenominator = _denominator;
+    function setFeeReceivers(address _taxFeeReceiver) external authorized {
+        taxFeeReceiver = _taxFeeReceiver;
     }
 
     function getCirculatingSupply() public view returns (uint256) {
@@ -543,7 +420,4 @@ contract ESG is IERC20, Auth {
     function isOverLiquified(uint256 target, uint256 accuracy) public view returns (bool) {
         return getLiquidityBacking(accuracy) > target;
     }
-
-    event AutoLiquify(uint256 amountBNB, uint256 amountBOG);
-    event BuybackMultiplierActive(uint256 duration);
 }
