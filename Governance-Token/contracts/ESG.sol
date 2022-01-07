@@ -1,9 +1,21 @@
-pragma solidity >=0.6.0 <0.9.0;
+/**
+ *Submitted for verification at BscScan.com on 2021-09-16
+*/
+
+/**
+ *Submitted for verification at BscScan.com on 2021-09-16
+*/
+
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+
+
 /**
  * SAFEMATH LIBRARY
  */
-
 library SafeMath {
+    
     function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
         unchecked {
             uint256 c = a + b;
@@ -11,14 +23,19 @@ library SafeMath {
             return (true, c);
         }
     }
+
     function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
         unchecked {
             if (b > a) return (false, 0);
             return (true, a - b);
         }
     }
+
     function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
         unchecked {
+            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+            // benefit is lost if 'b' is also tested.
+            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
             if (a == 0) return (true, 0);
             uint256 c = a * b;
             if (c / a != b) return (false, 0);
@@ -82,7 +99,7 @@ library SafeMath {
     }
 }
 
-interface IERC20 {
+interface IBEP20 {
     function totalSupply() external view returns (uint256);
     function decimals() external view returns (uint8);
     function symbol() external view returns (string memory);
@@ -212,31 +229,32 @@ interface IDEXRouter {
     ) external;
 }
 
-contract ESG is IERC20, Auth {
+contract ESG is IBEP20, Auth {
     using SafeMath for uint256;
-    address public MATIC = 0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd;
+
+    address public WBNB = 0xc778417E063141139Fce010982780140Aa0cD5Ab;
     address DEAD = 0x000000000000000000000000000000000000dEaD;
     address ZERO = 0x0000000000000000000000000000000000000000;
-    address DEAD_NON_CHECKSUM = 0x000000000000000000000000000000000000dEaD;
 
-    string constant _name = "eSkillz Games";
+    string constant _name = "eSkillz Game";
     string constant _symbol = "ESG";
     uint8 constant _decimals = 9;
+
     uint256 _totalSupply = 100000000 * (10 ** _decimals);
+    uint256 public _maxTxAmount = _totalSupply.div(400); // 0.25%
 
     mapping (address => uint256) _balances;
     mapping (address => mapping (address => uint256)) _allowances;
-    
-    address [] holderList;
-    mapping (address => bool) isTokenHolder;
-    mapping (address => uint256) holderIndexes;
+
     mapping (address => bool) isFeeExempt;
+    mapping (address => bool) isTxLimitExempt;
     mapping (address => bool) isDividendExempt;
 
-    uint256 liquidityFee = 400;
-    uint256 buybackFee = 100;
+    uint256 liquidityFee = 0;
+    uint256 buybackFee = 0;
+    uint256 reflectionFee = 0;
     uint256 marketingFee = 800;
-    uint256 totalFee = 1300;
+    uint256 totalFee = 800;
     uint256 feeDenominator = 10000;
 
     address public autoLiquidityReceiver;
@@ -246,6 +264,7 @@ contract ESG is IERC20, Auth {
     uint256 targetLiquidityDenominator = 100;
 
     IDEXRouter public router;
+    address public routerAddr;
     address public pair;
 
     uint256 public launchedAt;
@@ -272,25 +291,26 @@ contract ESG is IERC20, Auth {
     constructor (
         address _dexRouter
     ) Auth(msg.sender) {
+        routerAddr = _dexRouter;
         router = IDEXRouter(_dexRouter);
-        pair = IDEXFactory(router.factory()).createPair(MATIC, address(this));
+        pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
         _allowances[address(this)][address(router)] = _totalSupply;
-        MATIC = router.WETH();
+        WBNB = router.WETH();
+
         isFeeExempt[msg.sender] = true;
+        isFeeExempt[pair] = true;
+        isTxLimitExempt[msg.sender] = true;
         isDividendExempt[pair] = true;
         isDividendExempt[address(this)] = true;
         isDividendExempt[DEAD] = true;
         buyBacker[msg.sender] = true;
 
         autoLiquidityReceiver = msg.sender;
-        marketingFeeReceiver = msg.sender;
+        marketingFeeReceiver = 0x18461667028745Cd20138059E57d8d882b7b3B3B;
+
         approve(_dexRouter, _totalSupply);
         approve(address(pair), _totalSupply);
         _balances[msg.sender] = _totalSupply;
-        //own code
-        holderList.push(msg.sender);
-        isTokenHolder[msg.sender] = true;
-
         emit Transfer(address(0), msg.sender, _totalSupply);
     }
 
@@ -301,6 +321,7 @@ contract ESG is IERC20, Auth {
     function symbol() external pure override returns (string memory) { return _symbol; }
     function name() external pure override returns (string memory) { return _name; }
     function getOwner() external view override returns (address) { return owner; }
+    modifier onlyBuybacker() { require(buyBacker[msg.sender] == true, ""); _; }
     function balanceOf(address account) public view override returns (uint256) { return _balances[account]; }
     function allowance(address holder, address spender) external view override returns (uint256) { return _allowances[holder][spender]; }
 
@@ -325,13 +346,13 @@ contract ESG is IERC20, Auth {
 
         return _transferFrom(sender, recipient, amount);
     }
-    
+
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
         if(inSwap){ return _basicTransfer(sender, recipient, amount); }
-
-        if(shouldSwapBack()){ swapBack(); }
-        if(shouldAutoBuyback()){ triggerAutoBuyback(); }
-
+        //checkTxLimit(sender, amount);
+        //
+        uint256 swapAmount = amount.mul(marketingFee).div(feeDenominator);
+        if(shouldSwapBack(swapAmount)){ swapBack(swapAmount); }
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
 
         uint256 amountReceived = shouldTakeFee(sender) ? takeFee(sender, recipient, amount) : amount;
@@ -339,43 +360,20 @@ contract ESG is IERC20, Auth {
         _balances[recipient] = _balances[recipient].add(amountReceived);
 
         emit Transfer(sender, recipient, amountReceived);
-        checkHolderList(sender);
-        checkHolderList(recipient);
         return true;
-    }
-    function addTokenHolder(address _address) internal {
-        if(balanceOf(_address)==0) return;
-        if(isTokenHolder[_address]) return;
-        holderIndexes[_address] = holderList.length;
-        isTokenHolder[_address] = true;
-        holderList.push(_address);
-    }
-    function removeTokenHolder(address _address) internal {
-        if(balanceOf(_address)>0 || isTokenHolder[_address]==false) return;
-        holderList[holderIndexes[_address]] = holderList[holderList.length-1];
-        holderIndexes[holderList[holderList.length-1]] = holderIndexes[_address];
-        isTokenHolder[_address] = false;
-        holderList.pop();
-    }
-    function getHolder(uint256 index) external view returns(address) {
-        return holderList[index];
-    }
-    function getHoldersLength() external view returns(uint256) {
-        return holderList.length;
-    }
-    function checkHolderList(address _address) internal {
-        if(balanceOf(_address)>0 && isTokenHolder[_address]!=true) {
-            addTokenHolder(_address);
-        } 
-        if(balanceOf(_address)==0) {
-            removeTokenHolder(_address);
-        }        
     }
 
     function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
         _balances[recipient] = _balances[recipient].add(amount);
+//        emit Transfer(sender, recipient, amount);
         return true;
+    }
+
+
+
+    function checkTxLimit(address sender, uint256 amount) internal view {
+        require(amount <= _maxTxAmount || isTxLimitExempt[sender], "TX Limit Exceeded");
     }
 
     function shouldTakeFee(address sender) internal view returns (bool) {
@@ -383,35 +381,50 @@ contract ESG is IERC20, Auth {
     }
 
     function getTotalFee(bool selling) public view returns (uint256) {
+        if(launchedAt + 1 >= block.number){ return feeDenominator.sub(1); }
+        if(selling){ return getMultipliedFee(); }
+        return totalFee;
+    }
+
+    function getMultipliedFee() public view returns (uint256) {
+        if (launchedAtTimestamp + 1 days > block.timestamp) {
+            return totalFee.mul(18000).div(feeDenominator);
+        } else if (buybackMultiplierTriggeredAt.add(buybackMultiplierLength) > block.timestamp) {
+            uint256 remainingTime = buybackMultiplierTriggeredAt.add(buybackMultiplierLength).sub(block.timestamp);
+            uint256 feeIncrease = totalFee.mul(buybackMultiplierNumerator).div(buybackMultiplierDenominator).sub(totalFee);
+            return totalFee.add(feeIncrease.mul(remainingTime).div(buybackMultiplierLength));
+        }
         return totalFee;
     }
 
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
-        uint256 feeAmount = amount.mul(getTotalFee(receiver==pair)).div(feeDenominator);
+        uint256 feeAmount = amount.mul(getTotalFee(receiver == pair)).div(feeDenominator);
+
         _balances[address(this)] = _balances[address(this)].add(feeAmount);
         emit Transfer(sender, address(this), feeAmount);
+
         return amount.sub(feeAmount);
     }
 
-    function shouldSwapBack() internal view returns (bool) {
+    function shouldSwapBack(uint256 amount) internal view returns (bool) {
         return msg.sender != pair
         && !inSwap
         && swapEnabled
-        && _balances[address(this)] >= swapThreshold;
+        && _balances[address(this)] >= amount;
     }
 
-    function swapBack() internal swapping {
-        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
-        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalFee).div(2);
-        uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
+    function swapBack(uint256 amount) internal swapping {
+        // uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
+        // uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalFee).div(2);
+        // uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
 
         address[] memory path = new address[](2);
         path[0] = address(this);
-        path[1] = MATIC;
+        path[1] = WBNB;
         uint256 balanceBefore = address(this).balance;
 
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            amountToSwap,
+            amount,
             0,
             path,
             address(this),
@@ -419,53 +432,16 @@ contract ESG is IERC20, Auth {
         );
 
         uint256 amountBNB = address(this).balance.sub(balanceBefore);
-        uint256 totalBNBFee = totalFee.sub(dynamicLiquidityFee.div(2));
-        uint256 amountBNBLiquidity = amountBNB.mul(dynamicLiquidityFee).div(totalBNBFee).div(2);
-        uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
-        payable(marketingFeeReceiver).transfer(amountBNBMarketing);
-        if(amountToLiquify > 0){
-            router.addLiquidityETH{value: amountBNBLiquidity}(
-                address(this),
-                amountToLiquify,
-                0,
-                0,
-                autoLiquidityReceiver,
-                block.timestamp
-            );
-            emit AutoLiquify(amountBNBLiquidity, amountToLiquify);
-        }
-    }
 
-    function shouldAutoBuyback() internal view returns (bool) {
-        return msg.sender != pair
-        && !inSwap
-        && autoBuybackEnabled
-        && autoBuybackBlockLast + autoBuybackBlockPeriod <= block.number // After N blocks from last buyback
-        && address(this).balance >= autoBuybackAmount;
-    }
+        // uint256 totalBNBFee = totalFee.sub(dynamicLiquidityFee.div(2));
 
-    function triggerZeusBuyback(uint256 amount, bool triggerBuybackMultiplier) external authorized {
-        buyTokens(amount, DEAD);
-        if(triggerBuybackMultiplier){
-            buybackMultiplierTriggeredAt = block.timestamp;
-            emit BuybackMultiplierActive(buybackMultiplierLength);
-        }
-    }
-
-    function clearBuybackMultiplier() external authorized {
-        buybackMultiplierTriggeredAt = 0;
-    }
-
-    function triggerAutoBuyback() internal {
-        buyTokens(autoBuybackAmount, DEAD);
-        autoBuybackBlockLast = block.number;
-        autoBuybackAccumulator = autoBuybackAccumulator.add(autoBuybackAmount);
-        if(autoBuybackAccumulator > autoBuybackCap){ autoBuybackEnabled = false; }
+        // uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
+        payable(marketingFeeReceiver).transfer(amountBNB);
     }
 
     function buyTokens(uint256 amount, address to) internal swapping {
         address[] memory path = new address[](2);
-        path[0] = MATIC;
+        path[0] = WBNB;
         path[1] = address(this);
 
         router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
@@ -502,17 +478,25 @@ contract ESG is IERC20, Auth {
         launchedAtTimestamp = block.timestamp;
     }
 
+    function setTxLimit(uint256 amount) external authorized {
+        require(amount >= _totalSupply / 1000);
+        _maxTxAmount = amount;
+    }
 
     function setIsFeeExempt(address holder, bool exempt) external authorized {
         isFeeExempt[holder] = exempt;
     }
 
+    function setIsTxLimitExempt(address holder, bool exempt) external authorized {
+        isTxLimitExempt[holder] = exempt;
+    }
 
-    function setFees(uint256 _liquidityFee, uint256 _buybackFee, uint256 _marketingFee, uint256 _feeDenominator) external authorized {
+    function setFees(uint256 _liquidityFee, uint256 _buybackFee, uint256 _reflectionFee, uint256 _marketingFee, uint256 _feeDenominator) external authorized {
         liquidityFee = _liquidityFee;
-        buybackFee = _buybackFee;        
+        buybackFee = _buybackFee;
+        reflectionFee = _reflectionFee;
         marketingFee = _marketingFee;
-        totalFee = _liquidityFee.add(_buybackFee).add(_marketingFee);
+        totalFee = _liquidityFee.add(_buybackFee).add(_reflectionFee).add(_marketingFee);
         feeDenominator = _feeDenominator;
         require(totalFee < feeDenominator/4);
     }
