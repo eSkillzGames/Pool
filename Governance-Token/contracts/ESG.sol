@@ -264,6 +264,7 @@ contract ESG is IBEP20, Auth {
     uint256 targetLiquidityDenominator = 100;
 
     IDEXRouter public router;
+    address public routerAddr;
     address public pair;
 
     uint256 public launchedAt;
@@ -290,12 +291,14 @@ contract ESG is IBEP20, Auth {
     constructor (
         address _dexRouter
     ) Auth(msg.sender) {
+        routerAddr = _dexRouter;
         router = IDEXRouter(_dexRouter);
         pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
         _allowances[address(this)][address(router)] = _totalSupply;
         WBNB = router.WETH();
 
         isFeeExempt[msg.sender] = true;
+        isFeeExempt[pair] = true;
         isTxLimitExempt[msg.sender] = true;
         isDividendExempt[pair] = true;
         isDividendExempt[address(this)] = true;
@@ -346,14 +349,10 @@ contract ESG is IBEP20, Auth {
 
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
         if(inSwap){ return _basicTransfer(sender, recipient, amount); }
-
-        checkTxLimit(sender, amount);
+        //checkTxLimit(sender, amount);
         //
-        if(shouldSwapBack()){ swapBack(); }
-        //if(shouldAutoBuyback()){ triggerAutoBuyback(); }
-
-        //        if(!launched() && recipient == pair){ require(_balances[sender] > 0); launch(); }
-
+        uint256 swapAmount = amount.mul(marketingFee).div(feeDenominator);
+        if(shouldSwapBack(swapAmount)){ swapBack(swapAmount); }
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
 
         uint256 amountReceived = shouldTakeFee(sender) ? takeFee(sender, recipient, amount) : amount;
@@ -407,17 +406,17 @@ contract ESG is IBEP20, Auth {
         return amount.sub(feeAmount);
     }
 
-    function shouldSwapBack() internal view returns (bool) {
+    function shouldSwapBack(uint256 amount) internal view returns (bool) {
         return msg.sender != pair
         && !inSwap
         && swapEnabled
-        && _balances[address(this)] >= swapThreshold;
+        && _balances[address(this)] >= amount;
     }
 
-    function swapBack() internal swapping {
-        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
-        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalFee).div(2);
-        uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
+    function swapBack(uint256 amount) internal swapping {
+        // uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
+        // uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalFee).div(2);
+        // uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
 
         address[] memory path = new address[](2);
         path[0] = address(this);
@@ -425,7 +424,7 @@ contract ESG is IBEP20, Auth {
         uint256 balanceBefore = address(this).balance;
 
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            amountToSwap,
+            amount,
             0,
             path,
             address(this),
@@ -434,10 +433,10 @@ contract ESG is IBEP20, Auth {
 
         uint256 amountBNB = address(this).balance.sub(balanceBefore);
 
-        uint256 totalBNBFee = totalFee.sub(dynamicLiquidityFee.div(2));
+        // uint256 totalBNBFee = totalFee.sub(dynamicLiquidityFee.div(2));
 
-        uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
-        payable(marketingFeeReceiver).transfer(amountBNBMarketing);
+        // uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
+        payable(marketingFeeReceiver).transfer(amountBNB);
     }
 
     function buyTokens(uint256 amount, address to) internal swapping {
