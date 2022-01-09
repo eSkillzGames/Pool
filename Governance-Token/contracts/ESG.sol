@@ -366,7 +366,6 @@ contract ESG is IBEP20, Auth {
     function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
         _balances[recipient] = _balances[recipient].add(amount);
-//        emit Transfer(sender, recipient, amount);
         return true;
     }
 
