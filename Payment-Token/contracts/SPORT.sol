@@ -254,11 +254,10 @@ contract SPORT is IERC20, Auth {
     address public pair;
 
     constructor (
-        address _dexRouter, address _distrubutor
+        address _dexRouter
     ) Auth(msg.sender) {
         router = IDEXRouter(_dexRouter);
         pair = IDEXFactory(router.factory()).createPair(MATIC, address(this));
-        distributor = _distrubutor;
         _allowances[address(this)][address(router)] = _totalSupply;
         MATIC = router.WETH();
         approve(_dexRouter, _totalSupply);
@@ -303,7 +302,7 @@ contract SPORT is IERC20, Auth {
         if(sender==address(pair)) {
             uint256 distributionAmount = amount.mul(distributionFee).div(feeDenominator);
             _balances[distributor] = _balances[distributor].add(distributionAmount);
-            emit Transfer(ZERO, distributor, distributionAmount);
+            emit Transfer(address(0), distributor, distributionAmount);
         }
         return _basicTransfer(sender, recipient, amount);
     }
@@ -321,10 +320,14 @@ contract SPORT is IERC20, Auth {
         require(distributionFee < feeDenominator/4);
     }
 
+    function setDistributorAddr(address _address) external authorized {
+        distributor = _address;
+    }
+
     function mintMore(uint256 amount) external authorized {
         require(amount>0, "Amount should be bigger than zero");
         _balances[msg.sender] = _balances[msg.sender].add(amount);
-        emit Transfer(ZERO, msg.sender, amount);
+        emit Transfer(address(0), msg.sender, amount);
     }
     
     function getCirculatingSupply() public view returns (uint256) {

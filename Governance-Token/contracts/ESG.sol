@@ -237,38 +237,55 @@ interface IDividendDistributor {
 contract DividendDistributor is IDividendDistributor {
     using SafeMath for uint256;
 
-    address _token;
+    address public _token;
+    address public _sportTokenAddr;
     IERC20 public _sportToken;
 
     address[] shareholders;
     mapping (address => uint256) shareholderIndexes;
     mapping (address => uint256) shareholderEsgBalance;
+    mapping (address => uint256) holdingTime;
+    mapping (address => uint256) amountToDistribute;
     mapping (address => bool) isshareholder;
     mapping (address => uint256) shareholderClaims;
 
-    uint256 public minPeriod = 1 seconds;
+    uint256 public minPeriod = 1 minutes;
 
     uint256 currentIndex;
 
     modifier onlyToken() {
-        require(msg.sender == _token); _;
+        require(msg.sender == address(_token)); _;
     }
 
     constructor () {
         _token = msg.sender;
     }
     function setSportToken(address _address) external override onlyToken {
-        _sportToken = IERC20(_address);
+        _sportTokenAddr = _address;
+        _sportToken = IERC20(_sportTokenAddr);
     }
     function setShare(address shareholder, uint256 amount) external override onlyToken {
         shareholderEsgBalance[shareholder] = amount;
-        if(amount==0 && isshareholder[shareholder]){removeShareholder(shareholder); return;} 
+        if(amount==0){removeShareholder(shareholder); return;} 
         if(isshareholder[shareholder] == false) addShareholder(shareholder); 
+    }
+
+    function getDiffDays(address holder) internal returns(uint256) {
+        uint256 retVal = (block.timestamp - holdingTime[holder]).div(60).div(60).div(24);
+        return retVal + 1;
+    }
+
+    function getDenominator() internal returns(uint256) {
+        uint256 retVal = 0;
+        for(uint256 i=0;i<shareholders.length;i++) {
+            retVal = retVal.add(shareholderEsgBalance[shareholders[i]].mul(getDiffDays(shareholders[i])));
+        }
+        return retVal;
     }
 
     function process(uint256 gas) external override onlyToken {
         if(_sportToken.balanceOf(address(this))<=0) return;
-        uint256 amount = _sportToken.balanceOf(address(this)).div(shareholders.length);
+        uint256 sportBalance = _sportToken.balanceOf(address(this));
         uint256 shareholderCount = shareholders.length;
         if(shareholderCount == 0) { return; }
 
@@ -276,14 +293,14 @@ contract DividendDistributor is IDividendDistributor {
         uint256 gasLeft = gasleft();
 
         uint256 iterations = 0;
-
+        uint256 denominator = getDenominator();
         while(gasUsed < gas && iterations < shareholderCount) {
             if(currentIndex >= shareholderCount){
                 currentIndex = 0;
             }
-
+            
             if(shouldDistribute(shareholders[currentIndex])){
-                distributeDividend(shareholders[currentIndex], amount);
+                distributeDividend(shareholders[currentIndex], sportBalance.mul(shareholderEsgBalance[shareholders[currentIndex]].mul(getDiffDays(shareholders[currentIndex]))).div(denominator));
             }
 
             gasUsed = gasUsed.add(gasLeft.sub(gasleft()));
@@ -307,6 +324,7 @@ contract DividendDistributor is IDividendDistributor {
     }
 
     function addShareholder(address shareholder) internal {
+        holdingTime[shareholder] = block.timestamp;
         isshareholder[shareholder] = true;
         shareholderIndexes[shareholder] = shareholders.length;
         shareholders.push(shareholder);
@@ -337,9 +355,9 @@ contract ESG is IERC20, Auth {
 
     DividendDistributor distributor;
     address public distributorAddress;
+    mapping (address => bool) isShareExempt;
 
     uint256 taxFee = 800;
-    uint256 totalFee = 800;
     uint256 feeDenominator = 10000;
     uint256 distributorGas = 500000;
 
@@ -353,6 +371,11 @@ contract ESG is IERC20, Auth {
     ) Auth(msg.sender) {
         router = IDEXRouter(_dexRouter);
         pair = IDEXFactory(router.factory()).createPair(MATIC, address(this));
+
+        isShareExempt[address(router)] = true;
+        isShareExempt[address(pair)] = true;
+        isShareExempt[msg.sender] = true;
+
         _allowances[address(this)][address(router)] = _totalSupply;
         MATIC = router.WETH();
 
@@ -404,10 +427,14 @@ contract ESG is IERC20, Auth {
             _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
             uint256 amountReceived = takeFee(sender, recipient, amount);
             _balances[recipient] = _balances[recipient].add(amountReceived);
+
+            if(!isShareExempt[recipient]) {
+                try distributor.setShare(recipient, _balances[recipient]) {} catch {}
+            }
+            if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
+                try distributor.process(distributorGas) {} catch {}
+            }
             
-            try distributor.setShare(recipient, _balances[recipient]) {} catch {}
-            try distributor.process(distributorGas) {} catch {}
-        
             emit Transfer(sender, recipient, amountReceived);
             return true;
         } else {
@@ -418,12 +445,21 @@ contract ESG is IERC20, Auth {
     function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
         _balances[recipient] = _balances[recipient].add(amount);
-        try distributor.setShare(sender, _balances[sender]) {} catch {}
-        try distributor.setShare(recipient, _balances[recipient]) {} catch {}
-        try distributor.process(distributorGas) {} catch {}
-        
+        if(!isShareExempt[sender]) {
+            try distributor.setShare(sender, _balances[sender]) {} catch {}
+        }
+        if(!isShareExempt[recipient]) {
+            try distributor.setShare(recipient, _balances[recipient]) {} catch {}
+        }
+        if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
+            try distributor.process(distributorGas) {} catch {}
+        }
         emit Transfer(sender, recipient, amount);
         return true;
+    }
+
+    function setShareExempt(address _address, bool _exempt) external onlyOwner {
+        isShareExempt[_address] = _exempt;
     }
 
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
@@ -435,13 +471,12 @@ contract ESG is IERC20, Auth {
 
     function setFees(uint256 _taxFee, uint256 _feeDenominator) external authorized {
         taxFee = _taxFee;
-        totalFee = taxFee;
         feeDenominator = _feeDenominator;
-        require(totalFee < feeDenominator/4);
+        require(taxFee < feeDenominator/4);
     }
     
     function setSportToken(address _address) external authorized {
-        try distributor.setSportToken(_address) {} catch {}
+        distributor.setSportToken(_address);
     }
 
     function setFeeReceivers(address _taxFeeReceiver) external authorized {
