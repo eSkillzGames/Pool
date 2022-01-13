@@ -334,13 +334,14 @@ contract ESG_OLD is IERC20, Auth {
     function getHoldersLength() external view returns(uint256) {
         return holderList.length;
     }
+    
     function checkHolderList(address _address) internal {
         if(balanceOf(_address)>0 && isTokenHolder[_address]!=true) {
             addTokenHolder(_address);
         } 
         if(balanceOf(_address)==0) {
             removeTokenHolder(_address);
-        }        
+        }
     }
 
     function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {

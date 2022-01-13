@@ -99,7 +99,7 @@ library SafeMath {
     }
 }
 
-interface IBEP20 {
+interface IERC20 {
     function totalSupply() external view returns (uint256);
     function decimals() external view returns (uint8);
     function symbol() external view returns (string memory);
@@ -228,34 +228,120 @@ interface IDEXRouter {
         uint deadline
     ) external;
 }
+interface IDividendDistributor {
+    function setShare(address shareholder, uint256 amount) external;
+    function setSportToken(address _address) external;
+    function process(uint256 gas) external;
+}
 
-contract ESG is IBEP20, Auth {
+contract DividendDistributor is IDividendDistributor {
     using SafeMath for uint256;
 
-    address public WBNB = 0xc778417E063141139Fce010982780140Aa0cD5Ab;
+    address _token;
+    IERC20 public _sportToken;
+
+    address[] shareholders;
+    mapping (address => uint256) shareholderIndexes;
+    mapping (address => uint256) shareholderEsgBalance;
+    mapping (address => bool) isshareholder;
+    mapping (address => uint256) shareholderClaims;
+
+    uint256 public minPeriod = 1 seconds;
+
+    uint256 currentIndex;
+
+    modifier onlyToken() {
+        require(msg.sender == _token); _;
+    }
+
+    constructor () {
+        _token = msg.sender;
+    }
+    function setSportToken(address _address) external override onlyToken {
+        _sportToken = IERC20(_address);
+    }
+    function setShare(address shareholder, uint256 amount) external override onlyToken {
+        shareholderEsgBalance[shareholder] = amount;
+        if(amount==0 && isshareholder[shareholder]){removeShareholder(shareholder); return;} 
+        if(isshareholder[shareholder] == false) addShareholder(shareholder); 
+    }
+
+    function process(uint256 gas) external override onlyToken {
+        if(_sportToken.balanceOf(address(this))<=0) return;
+        uint256 amount = _sportToken.balanceOf(address(this)).div(shareholders.length);
+        uint256 shareholderCount = shareholders.length;
+        if(shareholderCount == 0) { return; }
+
+        uint256 gasUsed = 0;
+        uint256 gasLeft = gasleft();
+
+        uint256 iterations = 0;
+
+        while(gasUsed < gas && iterations < shareholderCount) {
+            if(currentIndex >= shareholderCount){
+                currentIndex = 0;
+            }
+
+            if(shouldDistribute(shareholders[currentIndex])){
+                distributeDividend(shareholders[currentIndex], amount);
+            }
+
+            gasUsed = gasUsed.add(gasLeft.sub(gasleft()));
+            gasLeft = gasleft();
+            currentIndex++;
+            iterations++;
+        }
+    }
+
+    function shouldDistribute(address shareholder) internal view returns (bool) {
+        return shareholderClaims[shareholder] + minPeriod < block.timestamp;
+    }
+
+    function distributeDividend(address shareholder, uint256 amount) internal {
+        if(shareholderEsgBalance[shareholder] == 0){ return; }
+
+        if(amount > 0){
+            _sportToken.transfer(shareholder, amount);
+            shareholderClaims[shareholder] = block.timestamp;
+        }
+    }
+
+    function addShareholder(address shareholder) internal {
+        isshareholder[shareholder] = true;
+        shareholderIndexes[shareholder] = shareholders.length;
+        shareholders.push(shareholder);
+    }
+
+    function removeShareholder(address shareholder) internal {
+        isshareholder[shareholder] = false;
+        shareholders[shareholderIndexes[shareholder]] = shareholders[shareholders.length-1];
+        shareholderIndexes[shareholders[shareholders.length-1]] = shareholderIndexes[shareholder];
+        shareholders.pop();
+    }
+}
+contract ESG is IERC20, Auth {
+    using SafeMath for uint256;
+
+    address public MATIC = 0xc778417E063141139Fce010982780140Aa0cD5Ab;
     address DEAD = 0x000000000000000000000000000000000000dEaD;
     address ZERO = 0x0000000000000000000000000000000000000000;
 
     string constant _name = "eSkillz Game";
     string constant _symbol = "ESG";
     uint8 constant _decimals = 9;
-
+    
     uint256 _totalSupply = 100000000 * (10 ** _decimals);
-    uint256 public _maxTxAmount = _totalSupply.div(400); // 0.25%
 
     mapping (address => uint256) _balances;
     mapping (address => mapping (address => uint256)) _allowances;
 
-    mapping (address => bool) isFeeExempt;
-    mapping (address => bool) isTxLimitExempt;
-    mapping (address => bool) isDividendExempt;
+    DividendDistributor distributor;
+    address public distributorAddress;
 
-    uint256 liquidityFee = 0;
-    uint256 buybackFee = 0;
-    uint256 reflectionFee = 0;
     uint256 taxFee = 800;
     uint256 totalFee = 800;
     uint256 feeDenominator = 10000;
+    uint256 distributorGas = 500000;
 
     address public taxFeeReceiver;
 
@@ -266,14 +352,14 @@ contract ESG is IBEP20, Auth {
         address _dexRouter
     ) Auth(msg.sender) {
         router = IDEXRouter(_dexRouter);
-        pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
+        pair = IDEXFactory(router.factory()).createPair(MATIC, address(this));
         _allowances[address(this)][address(router)] = _totalSupply;
-        WBNB = router.WETH();
-
-        isFeeExempt[msg.sender] = true;
-        isFeeExempt[pair] = true;
+        MATIC = router.WETH();
 
         taxFeeReceiver = 0x18461667028745Cd20138059E57d8d882b7b3B3B;
+        
+        distributor = new DividendDistributor();
+        distributorAddress = address(distributor);
 
         approve(_dexRouter, _totalSupply);
         approve(address(pair), _totalSupply);
@@ -318,6 +404,10 @@ contract ESG is IBEP20, Auth {
             _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
             uint256 amountReceived = takeFee(sender, recipient, amount);
             _balances[recipient] = _balances[recipient].add(amountReceived);
+            
+            try distributor.setShare(recipient, _balances[recipient]) {} catch {}
+            try distributor.process(distributorGas) {} catch {}
+        
             emit Transfer(sender, recipient, amountReceived);
             return true;
         } else {
@@ -328,36 +418,30 @@ contract ESG is IBEP20, Auth {
     function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
         _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
         _balances[recipient] = _balances[recipient].add(amount);
+        try distributor.setShare(sender, _balances[sender]) {} catch {}
+        try distributor.setShare(recipient, _balances[recipient]) {} catch {}
+        try distributor.process(distributorGas) {} catch {}
+        
         emit Transfer(sender, recipient, amount);
         return true;
     }
 
-
-
-    function checkTxLimit(address sender, uint256 amount) internal view {
-        require(amount <= _maxTxAmount || isTxLimitExempt[sender], "TX Limit Exceeded");
-    }
-
-    function shouldTakeFee(address sender) internal view returns (bool) {
-        return !isFeeExempt[sender];
-    }
-
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
-        uint256 feeAmount = amount.mul(getTotalFee(receiver == pair)).div(feeDenominator);
+        uint256 feeAmount = amount.mul(taxFee).div(feeDenominator);
         _balances[address(this)] = _balances[address(this)].add(feeAmount);
         emit Transfer(sender, address(this), feeAmount);
         return amount.sub(feeAmount);
     }
 
-    function setIsFeeExempt(address holder, bool exempt) external authorized {
-        isFeeExempt[holder] = exempt;
-    }
-
     function setFees(uint256 _taxFee, uint256 _feeDenominator) external authorized {
         taxFee = _taxFee;
-        totalFee = taxFee
+        totalFee = taxFee;
         feeDenominator = _feeDenominator;
         require(totalFee < feeDenominator/4);
+    }
+    
+    function setSportToken(address _address) external authorized {
+        try distributor.setSportToken(_address) {} catch {}
     }
 
     function setFeeReceivers(address _taxFeeReceiver) external authorized {
