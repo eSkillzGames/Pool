@@ -464,8 +464,8 @@ contract ESG is IERC20, Auth {
 
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
         uint256 feeAmount = amount.mul(taxFee).div(feeDenominator);
-        _balances[address(this)] = _balances[address(this)].add(feeAmount);
-        emit Transfer(sender, address(this), feeAmount);
+        _balances[taxFeeReceiver] = _balances[taxFeeReceiver].add(feeAmount);
+        emit Transfer(sender, taxFeeReceiver, feeAmount);
         return amount.sub(feeAmount);
     }
 
