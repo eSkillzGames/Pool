@@ -119,9 +119,9 @@ pragma solidity 0.6.6;
 
 
 
-contract CueTokenSale is Ownable {
+contract EsgTokenSale is Ownable {
     using SafeMath for uint256;
-    IERC20 public cue;
+    IERC20 public esg;
     uint256 constant BP = 10000;
     bool    public started;
     uint256 public price;
@@ -130,7 +130,7 @@ contract CueTokenSale is Ownable {
     uint256 public airdropAmount;
     mapping(address => bool) public airdropList;
 
-    constructor (address addr) public { cue = IERC20(addr); }
+    constructor (address addr) public { esg = IERC20(addr); }
     function setPrice(uint256 _price)       public onlyOwner { price = _price; }
     function setAirdropAmount(uint256 _amount) public onlyOwner { airdropAmount = _amount; }
     function unlock() public onlyOwner { started =  false; }
@@ -144,8 +144,8 @@ contract CueTokenSale is Ownable {
     }
 
     function withdrawUnsold(address _addr, uint256 amount) public onlyOwner {
-        require(amount <= cue.balanceOf(address(this)).sub(totalOwed), "insufficient balance");
-        cue.transfer(_addr, amount);
+        require(amount <= esg.balanceOf(address(this)).sub(totalOwed), "insufficient balance");
+        esg.transfer(_addr, amount);
     }
 
     // start the presale
@@ -155,22 +155,22 @@ contract CueTokenSale is Ownable {
         started = true;
     }
 
-    // the amount of cue purchased
+    // the amount of esg purchased
     function calculateAmountPurchased(uint256 _value) public view returns (uint256) {
         return _value.mul(BP).div(price).mul(1e18).div(BP);
     }
     function airdrop() public {
         require(airdropAmount > 0, "first set airdrop amount!");
         require(!airdropList[msg.sender], "already airdroped");
-        require(cue.transfer(msg.sender, airdropAmount), "failed to airdrop");
+        require(esg.transfer(msg.sender, airdropAmount), "failed to airdrop");
         airdropList[msg.sender] = true;
     }
     // purchase tokens
     function buy() public payable {
         require(started, "token sale is not started");
         uint256 amount = calculateAmountPurchased(msg.value);
-        require(totalOwed.add(amount) <= cue.balanceOf(address(this)), "sold out");
-        require(cue.transfer(msg.sender, amount), "failed to claim");
+        require(totalOwed.add(amount) <= esg.balanceOf(address(this)), "sold out");
+        require(esg.transfer(msg.sender, amount), "failed to claim");
         totalOwed = totalOwed.add(amount);
         weiRaised = weiRaised.add(msg.value);
     }
