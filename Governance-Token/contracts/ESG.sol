@@ -362,9 +362,13 @@ contract ESG is IERC20, Auth {
     uint256 distributorGas = 500000;
 
     address public taxFeeReceiver;
+    bool swapInToken = false;
 
     IDEXRouter public router;
     address public pair;
+
+    bool inSwap;
+    modifier swapping() { inSwap = true; _; inSwap = false; }
 
     constructor (
         address _dexRouter
@@ -423,6 +427,8 @@ contract ESG is IERC20, Auth {
     }
 
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
+        if(inSwap) { _basicTransfer(sender, recipient, amount); }
+        if(shouldSwapBack()) { swapBack(); }
         if(sender==address(pair)) {
             _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
             uint256 amountReceived = takeFee(sender, recipient, amount);
@@ -458,14 +464,41 @@ contract ESG is IERC20, Auth {
         return true;
     }
 
+    function shouldSwapBack() internal view returns (bool) {
+        return msg.sender != pair
+        && !inSwap
+        && _balances[address(this)] >0;
+    }
+
     function setShareExempt(address _address, bool _exempt) external onlyOwner {
         isShareExempt[_address] = _exempt;
     }
 
+    function swapBack() internal swapping {
+        uint256 amount = balanceOf(address(this));
+        if(amount>0) {
+            address[] memory path = new address[](2);
+            path[0] = address(this);
+            path[1] = MATIC;
+            router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                amount,
+                0,
+                path,
+                taxFeeReceiver,
+                block.timestamp
+            );
+        }
+    }
+
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
         uint256 feeAmount = amount.mul(taxFee).div(feeDenominator);
-        _balances[taxFeeReceiver] = _balances[taxFeeReceiver].add(feeAmount);
-        emit Transfer(sender, taxFeeReceiver, feeAmount);
+        if(swapInToken) {
+            _balances[taxFeeReceiver] = _balances[taxFeeReceiver].add(feeAmount);
+            emit Transfer(sender, taxFeeReceiver, feeAmount);
+        } else {
+            _balances[address(this)] = _balances[address(this)].add(feeAmount);
+            emit Transfer(sender, address(this), feeAmount);
+        }
         return amount.sub(feeAmount);
     }
 
@@ -481,6 +514,10 @@ contract ESG is IERC20, Auth {
 
     function setFeeReceivers(address _taxFeeReceiver) external authorized {
         taxFeeReceiver = _taxFeeReceiver;
+    }
+
+    function setSwapInToken(bool _swapInToken) external authorized {
+        swapInToken = _swapInToken;
     }
 
     function getCirculatingSupply() public view returns (uint256) {
