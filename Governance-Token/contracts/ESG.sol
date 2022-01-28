@@ -427,7 +427,7 @@ contract ESG is IERC20, Auth {
     }
 
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
-        if(inSwap) { _basicTransfer(sender, recipient, amount); }
+        //if(inSwap) { _basicTransfer(sender, recipient, amount); }
         if(shouldSwapBack()) { swapBack(); }
         if(sender==address(pair)) {
             _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
