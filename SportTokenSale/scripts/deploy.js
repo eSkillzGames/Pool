@@ -19,8 +19,8 @@ async function main() {
 
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  const Token = await ethers.getContractFactory("EsgTokenSale");
-  const token = await Token.deploy("0x8C534C9aa8d6cDB75d139caF5aD9716Db25eB628");
+  const Token = await ethers.getContractFactory("SportTokenSale");
+  const token = await Token.deploy("0xd371c8BcE5e4BeCC2c66E7003CD46f6558105C35");
   await token.deployed();
 
   console.log("Token address:", token.address);

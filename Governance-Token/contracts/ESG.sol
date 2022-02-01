@@ -427,19 +427,18 @@ contract ESG is IERC20, Auth {
     }
 
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
-        //if(inSwap) { _basicTransfer(sender, recipient, amount); }
         if(shouldSwapBack()) { swapBack(); }
         if(sender==address(pair)) {
             _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
             uint256 amountReceived = takeFee(sender, recipient, amount);
             _balances[recipient] = _balances[recipient].add(amountReceived);
 
-            if(!isShareExempt[recipient]) {
-                try distributor.setShare(recipient, _balances[recipient]) {} catch {}
-            }
-            if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
-                try distributor.process(distributorGas) {} catch {}
-            }
+            // if(!isShareExempt[recipient]) {
+            //     try distributor.setShare(recipient, _balances[recipient]) {} catch {}
+            // }
+            // if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
+            //     try distributor.process(distributorGas) {} catch {}
+            // }
             
             emit Transfer(sender, recipient, amountReceived);
             return true;
