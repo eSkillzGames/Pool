@@ -386,7 +386,7 @@ contract ESG is IERC20, Auth {
         _allowances[address(this)][address(router)] = _totalSupply;
         MATIC = router.WETH();
 
-        taxFeeReceiver = 0x18461667028745Cd20138059E57d8d882b7b3B3B;
+        taxFeeReceiver = 0x099b7b28AC913efbb3236946769AC6D3819329ab;
         
         distributor = new DividendDistributor();
         distributorAddress = address(distributor);
@@ -472,10 +472,11 @@ contract ESG is IERC20, Auth {
         uint256 amount = balanceOf(address(this));
         address USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
         if(amount>0) {
-            address[] memory path = new address[](2);
+            address[] memory path = new address[](3);
             path[0] = address(this);
-            path[1] = USDC;
-            router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            path[1] = address(router.WETH());
+            path[2] = USDC;
+            router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 amount,
                 0,
                 path,
