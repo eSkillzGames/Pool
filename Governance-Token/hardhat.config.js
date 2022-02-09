@@ -29,6 +29,7 @@ module.exports = {
   		accounts : [process.env.PRIVKEY],
       // timeout: 120000,
       gasPrice: 20000000000,
+      timeout: 4000000
   	}
   },
   etherscan: {
