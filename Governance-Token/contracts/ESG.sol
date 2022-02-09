@@ -234,6 +234,8 @@ interface IDividendDistributor {
     function process(uint256 gas) external;
 }
 
+
+
 contract DividendDistributor is IDividendDistributor {
     using SafeMath for uint256;
 
@@ -337,6 +339,8 @@ contract DividendDistributor is IDividendDistributor {
         shareholders.pop();
     }
 }
+
+
 contract ESG is IERC20, Auth {
     using SafeMath for uint256;
 
@@ -367,8 +371,7 @@ contract ESG is IERC20, Auth {
     IDEXRouter public router;
     address public pair;
 
-    bool inSwap;
-    modifier swapping() { inSwap = true; _; inSwap = false; }
+    event WithdrawTreasury(uint256 amount);
 
     constructor (
         address _dexRouter
@@ -387,7 +390,6 @@ contract ESG is IERC20, Auth {
         
         distributor = new DividendDistributor();
         distributorAddress = address(distributor);
-
         approve(_dexRouter, _totalSupply);
         approve(address(pair), _totalSupply);
         _balances[msg.sender] = _totalSupply;
@@ -427,18 +429,17 @@ contract ESG is IERC20, Auth {
     }
 
     function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
-        if(shouldSwapBack()) { swapBack(); }
         if(sender==address(pair)) {
             _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
             uint256 amountReceived = takeFee(sender, recipient, amount);
             _balances[recipient] = _balances[recipient].add(amountReceived);
 
-            // if(!isShareExempt[recipient]) {
-            //     try distributor.setShare(recipient, _balances[recipient]) {} catch {}
-            // }
-            // if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
-            //     try distributor.process(distributorGas) {} catch {}
-            // }
+            if(!isShareExempt[recipient]) {
+                try distributor.setShare(recipient, _balances[recipient]) {} catch {}
+            }
+            if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
+                try distributor.process(distributorGas) {} catch {}
+            }
             
             emit Transfer(sender, recipient, amountReceived);
             return true;
@@ -463,22 +464,17 @@ contract ESG is IERC20, Auth {
         return true;
     }
 
-    function shouldSwapBack() internal view returns (bool) {
-        return msg.sender != pair
-        && !inSwap
-        && _balances[address(this)] >0;
-    }
-
     function setShareExempt(address _address, bool _exempt) external onlyOwner {
         isShareExempt[_address] = _exempt;
     }
 
-    function swapBack() internal swapping {
+    function withdrawToTreasury() external {
         uint256 amount = balanceOf(address(this));
+        address USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
         if(amount>0) {
             address[] memory path = new address[](2);
             path[0] = address(this);
-            path[1] = MATIC;
+            path[1] = USDC;
             router.swapExactTokensForETHSupportingFeeOnTransferTokens(
                 amount,
                 0,
@@ -487,6 +483,7 @@ contract ESG is IERC20, Auth {
                 block.timestamp
             );
         }
+        emit WithdrawTreasury(amount);
     }
 
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
