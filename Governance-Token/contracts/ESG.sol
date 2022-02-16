@@ -361,7 +361,7 @@ contract ESG is IERC20, Auth {
     address public distributorAddress;
     mapping (address => bool) isShareExempt;
 
-    uint256 taxFee = 800;
+    uint256 public taxFee = 800;
     uint256 feeDenominator = 10000;
     uint256 distributorGas = 500000;
 
