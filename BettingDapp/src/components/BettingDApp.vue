@@ -10,10 +10,8 @@
       <div class="text-right p-6 space-x-4 flex justify-end">
         <button type="button"
                 class="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-purple-700 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                style="height:38px"
-                @click="claimToken"
-                >
-          <span  class="lg:block">{{ this.claimableAmount }} SPORT</span>
+                style="height:38px">
+          <span  class="lg:block">{{ this.sportBalance }} SPORT</span>
         </button>
         <div class="relative inline-block text-left">
           <div>
@@ -39,23 +37,12 @@
           >
             <div class="py-0.5" role="none">
               <button type="button"
-                v-if="networkId==1"
-                class="w-44 whitespace-nowrap inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                id="menu-button" aria-expanded="false" aria-haspopup="true"
-                @click="switchNetwork('0x38')"
-                >
-                <img class="-ml-0.5 mr-2 h-4 w-4" src="../assets/img/icons/bnb.png">
-                <span class="lg:block"><strong>BSC Mainnet</strong></span>
-
-              </button>
-              <button type="button"
-                v-else
                 class="whitespace-nowrap inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 id="menu-button" aria-expanded="false" aria-haspopup="true"
-                @click="switchNetwork('0x1')"
+                @click="switchNetwork('0x3')"
                 >
                 <img class="-ml-0.5 mr-2 h-4 w-4" src="../assets/img/providers/ethereum.svg">
-                <span class="lg:block"><strong>Ethereum Mainnet</strong></span>
+                <span class="lg:block"><strong>Ethereum Ropsten</strong></span>
               </button>
             </div>
           </div>
@@ -79,97 +66,33 @@
     </div>
 
     <section class="container max-w-screen-lg mx-auto py-2">
-      <img class="mx-auto h-64" src="../assets/img/logo/coin.png" alt="screenshot">
       <div class="py-6">
         <h1 class="pt-8 text-center text-4xl text-black">
-          Please start the game by depositing SPORT</h1>
+          Please start betting by depositing SPORT</h1>
       </div>
     </section>
     <section class="bg-gradient-to-r from-blue-500 to-purple-600 py-12 lg:px-10">
-      <div v-if="!this.ethereum">
-        <div class="max-w-6xl mx-auto" x-data="{ qr: false }">
-          <label class="block font-medium text-white font-bold text-4xl text-center">Send ETH to This Address - or -
-            connect your wallet</label>
-          <div class="my-12 relative items-center">
-            <input type="text" id="address" readonly v-model="account"
-                  class="p-4 h-16 sm:text-lg md:text-3xl text-gray-600 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full pr-12 border-gray-300 rounded-md">
-            <div class="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">
-              <button type="button" class="px-2" @click="copyAddress">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-              </button>
-              <div class="relative" v-show="copiedTooltip">
-                <div class="absolute top-0 z-10 w-32 p-2 -mt-4 text-sm leading-tight text-white transform -translate-x-full -translate-y-full bg-blue-500 rounded-lg shadow-lg">
-                  Copied Address
-                </div>
-            </div>
-            </div>
-
-          </div>
-
-          <div x-show="qr" class="flex justify-center max-w-6xl bg-white shadow-lg rounded-lg p-8 mx-auto text-center">
-            <qr-code :text="account"></qr-code>
-          </div>
-        </div>
-        <div class="max-w-6xl mx-auto pt-6 pb-6 overflow-auto text-white" >
-          <div class="float-left">
-            Max contribution: 100 ETH
-            <br/>
-            Min contribution: 0.01 ETH
-          </div>
-          <div class="float-right">
-            Gas limit: 200,000 UNITS
-            <br/>
-            Gas price: 80 GWEI
-          </div>
-        </div>
-      </div>
-      <div v-else-if="!is_paused&&(networkId==1||networkId==56)" class="m-auto d-flex lg:w-2/6 bg-white p-4 rounded .shadow-2xl">
-        <div class="mt-10 flex flex-row justify-end px-6">
-          <h6 class="text-sm">Balance:{{this.ethxBalance}}</h6>
-        </div>
+      
+      <div v-if="(networkId==3)" class="m-auto d-flex lg:w-2/6 bg-white p-4 rounded .shadow-2xl">
         <div class="mt-2 flex flex-row items-center justify-between mb-6 px-6">
-          <input class="appearance-none font-medium text-2xl py-1 rounded w-full  mb-3 leading-tight focus:outline-none focus:shadow-outline" type="text" placeholder="0.0" v-model="recvAmount">
-          <img src="../assets/img/coin.png" height="25px" width="25px" />
-          <label class="ml-2 font-semibold text-xl">SPORT</label>
-
-        </div>
-        <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button"
-          @click="buyToken" v-bind:disabled="sendAmount<=0"
-        >
-          Create Game
-        </button>
-      </div>
-      <div v-else-if="is_paused&&(networkId==1||networkId==56)" class="m-auto d-flex lg:w-2/6 bg-white p-4 rounded .shadow-2xl">
-        <h2 class="block mb-4 px-6 font-bold text-left text-black">
-          Claim the purchased ETHX
-        </h2>
-        <div class="mt-10 flex flex-row justify-between px-6">
-          <h6 class="text-sm">Claimable Ethx</h6>
-          <h6 class="text-sm">Balance:{{this.ethxBalance}}</h6>
-        </div>
-        <div class="mt-2 flex flex-row items-center justify-between mb-6 px-6">
-          <input class="appearance-none font-medium text-2xl py-1 rounded w-full  mb-3 leading-tight focus:outline-none focus:shadow-outline" type="text" placeholder="0.0" v-model="claimableAmount" disabled>
+          <input class="font-medium text-2xl py-1 rounded w-full  mb-3 leading-tight focus:outline-none focus:shadow-outline" type="text" placeholder="0.0" v-model="betAmount">
           <img src="../assets/img/coin.svg" height="25px" width="25px" />
-          <label class="ml-2 font-semibold text-xl">ETHX</label>
+          <label class="ml-2 font-semibold text-xl">SPORT</label>
         </div>
         <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button"
-          @click="claimToken"
+          @click="betGame"
         >
-          Claim
+          Bet
         </button>
       </div>
       <div v-else class="m-auto d-flex lg:w-2/6 bg-white p-4 rounded .shadow-2xl">
         <h2 class="block mb-4 px-6 font-bold text-left text-black">
-          Tokensale is only available on these networks:
+          Betting is only available on ropsten networks
         </h2>
-        <h4 class="text-md text-left px-6">-Ethereum (Mainnet)</h4>
-        <h4 class="text-md text-left px-6 mt-4">-Binance Smart Chain (Mainnet)</h4>
         <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-6" type="button"
-          @click="switchNetwork('0x1')"
+          @click="switchNetwork('0x3')"
         >
-          Switch
+          Switch network
         </button>
       </div>
     </section>
@@ -180,7 +103,7 @@
 <script>
 import Web3 from "web3"
 import PresaleJson from "../../contracts/Presale.json"
-import EthxJson from "../../contracts/Ethx.json"
+import SportJson from "../../contracts/SPORT.json"
 export default {
   name: 'Tokensale',
   components:{
@@ -188,21 +111,6 @@ export default {
   computed: {
     web3 () {
       return this.$store.state.web3
-    },
-    chainId(){
-      if(this.$store.state.web3.isInjected==false) {
-        return 1
-      }else {
-        return this.$store.state.myChainId
-      }
-    },
-    recvAmount:{
-      get(){
-        return this.sendAmount*this.price;
-      },
-      set(newVal){
-        this.sendAmount = newVal/this.price;
-      }
     }
   },
   data(){
@@ -211,25 +119,19 @@ export default {
       contractObj : {},
       ethxContractObj : {},
       price:0,
-      sendAmount:0,
       ethereum:window.ethereum,
-      copiedTooltip:false,
       contractAddr:"",
-      ethxContractAddr:"",
+      sportContractAddr:"0x1ff9C508F4Ba854cC5eEb50E0CBd6cAF9cc88006",
       abi:PresaleJson.abi,
-      ethxAbi:EthxJson.abi,
+      sportAbi:SportJson.abi,
       alertShow:false,
       alertMsg:"",
-      networkId:"1",
+      networkId:"3",
       account:"0x78Ce09cF3AFF8Ca7cF8B111725f547e18aF74875",
       balance:0,
-      is_paused:false,
-      ethxBalance:0,
-      claimableAmount:0,
-      curCoin:{ sym:"ETH", icon:"../assets/img/icons/icon.png" },
+      sportBalance:0,
+      betAmount:0,
       dropdownShow:false,
-      soldPercent:0,
-      soldAmount:0
     }
   },
 
@@ -246,7 +148,6 @@ export default {
       window.ethereum.on('accountsChanged', async (accounts) =>{
         this.account = accounts[0];
         this.getBalance();
-        this.calcPrice();
       });
     }
 
@@ -269,31 +170,14 @@ export default {
       console.log(Web3.givenProvider);
       console.log('ws://localhost:8545' || Web3.givenProvider);
       console.log("++++++++++++++++++++++");
-      if(networkId==1){
-        this.web3Obj = new Web3(Web3.givenProvider || 'ws://localhost:8545');
-        this.contractAddr="0xe5495e47b7cf5c9303ec6ac6b10d27241e0a67b2";
-        this.ethxContractAddr="0x14af5133C9989a7965CDe4fF82d391F96c8F6921";
-        this.curCoin = { sym:"ETH", icon:"../assets/img/icons/icon.png" };
-      } else if(networkId==3){
+      if(networkId==3){
         this.web3Obj = new Web3(Web3.givenProvider || 'https://ropsten.infura.io/');
         this.contractAddr="0x5444b0d07Ef839cCEa4a81FBf999149a06f010fE";
-        this.ethxContractAddr="0x961af03e0065170eaab464c151944fb774ee5003";
-        this.curCoin = { sym:"ETH", icon:"../assets/img/icons/icon.png" };
-      } else if(networkId==56){
-        this.web3Obj = new Web3(Web3.givenProvider || 'https://bsc-dataseed.binance.org');
-        this.contractAddr="0x0AaFB655636890a1683c1b5cCFAbD12Efd839D09";
-        this.ethxContractAddr="0xca221Ff18e38213a0ff185A3fA9C7807aff677BB";
-        this.curCoin = { sym:"BNB", icon:"../assets/img/icons/bnb.png" };
-      } else {
-        this.web3Obj = new Web3(Web3.givenProvider || 'https://ropsten.infura.io/');
-        this.contractAddr="0x5444b0d07Ef839cCEa4a81FBf999149a06f010fE";
-        this.ethxContractAddr="0x961af03e0065170eaab464c151944fb774ee5003";
-        this.curCoin = { sym:"ETH", icon:"../assets/img/icons/icon.png" };
+        this.sportContractAddr="0x1ff9C508F4Ba854cC5eEb50E0CBd6cAF9cc88006";
       }
-      this.ethxContractObj = new this.web3Obj.eth.Contract(this.ethxAbi,this.ethxContractAddr);
+      this.ethxContractObj = new this.web3Obj.eth.Contract(this.sportAbi,this.sportContractAddr);
       this.getBalance();
       this.contractObj = new this.web3Obj.eth.Contract(this.abi,this.contractAddr);
-      this.calcPrice();
     },
 
     async getBalance() {
@@ -301,7 +185,7 @@ export default {
         this.balance = Math.round(100*Web3.utils.fromWei(result, 'ether'))/100;
       });
       this.ethxContractObj.methods.balanceOf(this.account).call().then((result)=> {
-        this.ethxBalance = Math.round(100*Web3.utils.fromWei(result, 'ether'))/100;
+        this.sportBalance = Web3.utils.fromWei(result, 'ether')*1000000000;
       });
     },
     showAlert:function(msg) {
@@ -311,24 +195,9 @@ export default {
         this.alertMsg = "";
         this.alertShow = false;
       },1000)
-    },
-    calcPrice: async function() {
-      await this.contractObj.methods.price().call().then((res)=>{
-        this.price = 1/(res/1000000000000000000);
-      })
-      await this.contractObj.methods.paused().call().then((res)=>{
-        this.is_paused = res;
-      })
-      await this.contractObj.methods.claimable("0x78Ce09cF3AFF8Ca7cF8B111725f547e18aF74875").call().then((res)=>{
-        this.claimableAmount = Math.round(100*Web3.utils.fromWei(res, 'ether'))/100;
-      })
-      await this.contractObj.methods.weiRaised().call().then((res)=>{
-        this.soldAmount = res*this.price/1000000000000000000;
-        this.soldPercent = Math.round((res*this.price*100/250000000000000000000000)*10000)/10000;
-      })
-    },
+    },  
     claimToken: async function() {
-      if(this.claimableAmount==0){
+      if(this.betAmount==0){
         this.showAlert("nothing to claim");
         return;
       }
@@ -336,33 +205,6 @@ export default {
         console.log(res);
         document.location.reload();
       })
-    },
-    buyToken:async function() {
-      if(this.sendAmount<=0){
-        return;
-      }
-      if(this.sendAmount>this.balance){
-        this.showAlert("Insufficient funds");
-        return;
-      }
-      await this.contractObj.methods.buy().send({from:this.account, gas:300000,value:Web3.utils.toWei(this.sendAmount, "ether")}).then((res)=>{
-        console.log(res);
-        document.location.reload();
-      })
-    },
-    copyAddress:function() {
-      var copyText = document.getElementById("address");
-      copyText.select();
-      copyText.setSelectionRange(0, 99999);
-      document.execCommand("copy");
-      document.getSelection().removeAllRanges();
-      this.copiedTooltip = true;
-      setTimeout(() => {
-        this.copiedTooltip=false;
-      }, 1000);
-    },
-    airdrop:function() {
-      
     },
     connectMetaMask: async function(param) {
         if(param==1) {
