@@ -468,7 +468,7 @@ contract ESG is IERC20, Auth {
         isShareExempt[_address] = _exempt;
     }
 
-    function withdrawToTreasury() external {
+    function withdrawToTreasury() external onlyOwner {
         uint256 amount = balanceOf(address(this));
         address USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
         if(amount>0) {
