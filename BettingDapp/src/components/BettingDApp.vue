@@ -74,6 +74,49 @@
     <section class="bg-gradient-to-r from-blue-500 to-purple-600 py-12 lg:px-10">
       
       <div v-if="(networkId==3)" class="m-auto d-flex lg:w-2/6 bg-white p-4 rounded .shadow-2xl">
+        Now You are betting Game <span class="font-bold">{{this.curGame}}</span>
+        <br>
+        There are <span class="font-bold">{{this.playerLength}}</span> players in this game
+        <div class="flex justify-between">
+          <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="setGame(0)">
+            Game 0
+          </button>
+          <button class="ml-3 w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="finishGame(0)">
+            Finish
+          </button>
+        </div>
+        <div class="flex justify-between">
+          <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="setGame(1)">
+            Game 1
+          </button>
+          <button class="ml-3 w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="finishGame(1)">
+              Finish
+          </button>
+        </div>
+        <div class="flex justify-between">
+          <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="setGame(2)">
+            Game 2
+          </button>
+          <button class="ml-3 w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="finishGame(2)">
+            Finish
+          </button>
+        </div>
+        <div class="flex justify-between">
+          <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="setGame(3)">
+            Game 3
+          </button>
+          <button class="ml-3 w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="finishGame(3)">
+            Finish
+          </button>
+        </div>
+        <div class="flex justify-between">
+          <button class="w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="setGame(4)">
+            Game 4
+          </button>
+          <button class="ml-3 w-full bg-purple-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-2" type="button" @click="finishGame(4)">
+            Finish
+          </button>
+        </div>
         <div class="mt-2 flex flex-row items-center justify-between mb-6 px-6">
           <input class="font-medium text-2xl py-1 rounded w-full  mb-3 leading-tight focus:outline-none focus:shadow-outline" type="text" placeholder="0.0" v-model="betAmount">
           <img src="../assets/img/coin.svg" height="25px" width="25px" />
@@ -102,7 +145,7 @@
 
 <script>
 import Web3 from "web3"
-import PresaleJson from "../../contracts/Presale.json"
+import BetJson from "../../contracts/ESkillzStraightBet.json"
 import SportJson from "../../contracts/SPORT.json"
 export default {
   name: 'Tokensale',
@@ -117,12 +160,16 @@ export default {
     return {
       web3Obj : new Web3(Web3.givenProvider || 'ws://localhost:8545'),
       contractObj : {},
-      ethxContractObj : {},
+      sportContractObj : {},
+      curGame:0,
+      playerLength:0,
+      gamelist:[],
       price:0,
+      allowance:0,
       ethereum:window.ethereum,
-      contractAddr:"",
+      contractAddr:"0x3D511c4c6d8AD96A990A809A825956c9ec4ea888",
       sportContractAddr:"0x1ff9C508F4Ba854cC5eEb50E0CBd6cAF9cc88006",
-      abi:PresaleJson.abi,
+      abi:BetJson.abi,
       sportAbi:SportJson.abi,
       alertShow:false,
       alertMsg:"",
@@ -140,12 +187,11 @@ export default {
     if(window.ethereum){
       this.web3Obj.eth.getAccounts().then((result)=>{
         this.account = result[0];
-        if(result.length>0)this.$store.dispatch("checkMetamaskAddr", {metamask:result[0]});
       })
       window.ethereum.on('networkChanged', (networkId)=>{
         this.networkChanged(networkId);
       });
-      window.ethereum.on('accountsChanged', async (accounts) =>{
+      window.ethereum.on('accountsChanged', async (accounts) => {
         this.account = accounts[0];
         this.getBalance();
       });
@@ -156,6 +202,11 @@ export default {
     });
   },
   methods:{
+    async setGame(game){
+      this.curGame = game;
+      var leng = await this.contractObj.methods.getPlayerLength(game).call();
+      this.playerLength = leng;
+    },
     async switchNetwork(netid){
       this.dropdownShow = false;
       await window.ethereum.request({
@@ -166,25 +217,27 @@ export default {
     networkChanged(networkId){
       this.dropdownShow = false;
       this.networkId = networkId;
-      console.log("----------------------");
-      console.log(Web3.givenProvider);
-      console.log('ws://localhost:8545' || Web3.givenProvider);
-      console.log("++++++++++++++++++++++");
       if(networkId==3){
         this.web3Obj = new Web3(Web3.givenProvider || 'https://ropsten.infura.io/');
-        this.contractAddr="0x5444b0d07Ef839cCEa4a81FBf999149a06f010fE";
+        this.contractAddr="0x3D511c4c6d8AD96A990A809A825956c9ec4ea888";
         this.sportContractAddr="0x1ff9C508F4Ba854cC5eEb50E0CBd6cAF9cc88006";
       }
-      this.ethxContractObj = new this.web3Obj.eth.Contract(this.sportAbi,this.sportContractAddr);
+      this.sportContractObj = new this.web3Obj.eth.Contract(this.sportAbi,this.sportContractAddr);
       this.getBalance();
       this.contractObj = new this.web3Obj.eth.Contract(this.abi,this.contractAddr);
+      this.contractObj.methods.gamelist(0).call().then((result) => {
+        console.log(result);
+      })
+      this.sportContractObj.methods.allowance(this.account, this.contractAddr).call().then((result) => {
+        this.allowance = result/1000000000;
+      });
     },
 
     async getBalance() {
       await this.web3Obj.eth.getBalance(this.account).then((result)=>{
         this.balance = Math.round(100*Web3.utils.fromWei(result, 'ether'))/100;
       });
-      this.ethxContractObj.methods.balanceOf(this.account).call().then((result)=> {
+      this.sportContractObj.methods.balanceOf(this.account).call().then((result)=> {
         this.sportBalance = Web3.utils.fromWei(result, 'ether')*1000000000;
       });
     },
@@ -195,17 +248,28 @@ export default {
         this.alertMsg = "";
         this.alertShow = false;
       },1000)
-    },  
-    claimToken: async function() {
+    },
+    betGame: async function() {
       if(this.betAmount==0){
-        this.showAlert("nothing to claim");
+        this.showAlert("can not bet zero $");
         return;
       }
-      await this.contractObj.methods.claim().send({from:this.account, gas:300000, type:"0x2"}).then((res)=>{
+      if(this.allowance<this.betAmount) {
+        await this.sportContractObj.methods.approve(this.contractAddr, 100000000000000).send({from:this.account, gas:300000, type:"0x2"}).then((res) => {
+          console.log(res);
+        })  
+      }
+      await this.contractObj.methods.bet(this.curGame, this.betAmount).send({from:this.account, gas:300000, type:"0x2"}).then((res) => {
         console.log(res);
         document.location.reload();
       })
     },
+    finishGame: async function(game) {
+      await this.contractObj.methods.finishGame(game).send({from:this.account, gas:300000, type:"0x2"}).then(() => {
+        alert("Game "+game+" finished");
+      })
+    },
+    
     connectMetaMask: async function(param) {
         if(param==1) {
           console.log("ok")
