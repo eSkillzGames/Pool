@@ -421,7 +421,7 @@ contract ESG is IERC20, Auth {
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
-        if(_allowances[sender][msg.sender] != _totalSupply){
+        if(_allowances[sender][msg.sender] != _totalSupply) {
             _allowances[sender][msg.sender] = _allowances[sender][msg.sender].sub(amount, "Insufficient Allowance");
         }
 
