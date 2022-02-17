@@ -247,7 +247,7 @@ contract SPORT is IERC20, Auth {
 
     address public distributor;
 
-    uint256 distributionFee = 1000;
+    uint256 public distributionFee = 1000;
     uint256 feeDenominator = 10000;
 
     IDEXRouter public router;
@@ -303,6 +303,7 @@ contract SPORT is IERC20, Auth {
             uint256 distributionAmount = amount.mul(distributionFee).div(feeDenominator);
             _balances[distributor] = _balances[distributor].add(distributionAmount);
             emit Transfer(address(0), distributor, distributionAmount);
+            
         }
         return _basicTransfer(sender, recipient, amount);
     }
@@ -317,7 +318,6 @@ contract SPORT is IERC20, Auth {
     function setFees(uint256 _distributionFee, uint256 _feeDenominator) external authorized {
         distributionFee = _distributionFee;
         feeDenominator = _feeDenominator;
-        require(distributionFee < feeDenominator/4);
     }
 
     function setDistributorAddr(address _address) external authorized {
