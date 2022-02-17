@@ -243,13 +243,12 @@ contract DividendDistributor is IDividendDistributor {
     address public _sportTokenAddr;
     IERC20 public _sportToken;
 
-    address[] shareholders;
+    address[] public shareholders;
     mapping (address => uint256) shareholderIndexes;
-    mapping (address => uint256) shareholderEsgBalance;
+    mapping (address => uint256) public shareholderEsgBalance;
     mapping (address => uint256) holdingTime;
-    mapping (address => uint256) amountToDistribute;
-    mapping (address => bool) isshareholder;
-    mapping (address => uint256) shareholderClaims;
+    mapping (address => bool) public isshareholder;
+    mapping (address => uint256) public shareholderClaims;
 
     uint256 public minPeriod = 1 minutes;
 
