@@ -167,7 +167,7 @@ export default {
       price:0,
       allowance:0,
       ethereum:window.ethereum,
-      contractAddr:"0x3D511c4c6d8AD96A990A809A825956c9ec4ea888",
+      contractAddr:"0x99d8246DFFB610cDC0b1749125d867EDDf4D4020",
       sportContractAddr:"0x1ff9C508F4Ba854cC5eEb50E0CBd6cAF9cc88006",
       abi:BetJson.abi,
       sportAbi:SportJson.abi,
@@ -219,7 +219,7 @@ export default {
       this.networkId = networkId;
       if(networkId==3){
         this.web3Obj = new Web3(Web3.givenProvider || 'https://ropsten.infura.io/');
-        this.contractAddr="0x3D511c4c6d8AD96A990A809A825956c9ec4ea888";
+        this.contractAddr="0x99d8246DFFB610cDC0b1749125d867EDDf4D4020";
         this.sportContractAddr="0x1ff9C508F4Ba854cC5eEb50E0CBd6cAF9cc88006";
       }
       this.sportContractObj = new this.web3Obj.eth.Contract(this.sportAbi,this.sportContractAddr);
@@ -265,7 +265,7 @@ export default {
       })
     },
     finishGame: async function(game) {
-      await this.contractObj.methods.finishGame(game).send({from:this.account, gas:300000, type:"0x2"}).then(() => {
+      await this.contractObj.methods.finishGame(game, 1).send({from:this.account, gas:300000, type:"0x2"}).then(() => {
         alert("Game "+game+" finished");
       })
     },
