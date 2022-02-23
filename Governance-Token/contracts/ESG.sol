@@ -249,8 +249,10 @@ contract DividendDistributor is IDividendDistributor {
     mapping (address => uint256) holdingTime;
     mapping (address => bool) public isshareholder;
     mapping (address => uint256) public shareholderClaims;
+    mapping (address => uint256) public claimAmounts;
 
-    uint256 public minPeriod = 1 minutes;
+    uint256 public minPeriod = 1 days;
+    mapping(address => uint256) public distributedAmounts;
 
     uint256 currentIndex;
 
@@ -321,7 +323,14 @@ contract DividendDistributor is IDividendDistributor {
         if(amount > 0){
             _sportToken.transfer(shareholder, amount);
             shareholderClaims[shareholder] = block.timestamp;
+            claimAmounts[shareholder] = amount;
         }
+    }
+
+    function getYesterdayYield(address _address) external view returns (uint256) {
+        if(claimAmounts[_address]==0) return 0;
+        else if((block.timestamp - shareholderClaims[_address]) / 1 days < 1) return shareholderClaims[_address];
+        else return 0;
     }
 
     function addShareholder(address shareholder) internal {
@@ -361,11 +370,11 @@ contract ESG is IERC20, Auth {
     mapping (address => bool) isShareExempt;
 
     uint256 public taxFee = 800;
-    uint256 feeDenominator = 10000;
+    uint256 public feeDenominator = 10000;
     uint256 distributorGas = 500000;
 
     address public taxFeeReceiver;
-    bool swapInToken = false;
+    uint8 public taxOption = 1;
 
     IDEXRouter public router;
     address public pair;
@@ -471,24 +480,37 @@ contract ESG is IERC20, Auth {
         uint256 amount = balanceOf(address(this));
         address USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
         if(amount>0) {
-            address[] memory path = new address[](3);
-            path[0] = address(this);
-            path[1] = address(router.WETH());
-            path[2] = USDC;
-            router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                amount,
-                0,
-                path,
-                taxFeeReceiver,
-                block.timestamp
-            );
+            if(taxOption==2) {
+                address[] memory path = new address[](2);
+                path[0] = address(this);
+                path[1] = MATIC;
+                router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                    amount,
+                    0,
+                    path,
+                    taxFeeReceiver,
+                    block.timestamp
+                );
+            } else if(taxOption==3) {
+                address[] memory path = new address[](3);
+                path[0] = address(this);
+                path[1] = address(router.WETH());
+                path[2] = USDC;
+                router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    amount,
+                    0,
+                    path,
+                    taxFeeReceiver,
+                    block.timestamp
+                );
+            }
+            emit WithdrawTreasury(amount);
         }
-        emit WithdrawTreasury(amount);
     }
 
     function takeFee(address sender, address receiver, uint256 amount) internal returns (uint256) {
         uint256 feeAmount = amount.mul(taxFee).div(feeDenominator);
-        if(swapInToken) {
+        if(taxOption==1) {
             _balances[taxFeeReceiver] = _balances[taxFeeReceiver].add(feeAmount);
             emit Transfer(sender, taxFeeReceiver, feeAmount);
         } else {
@@ -501,7 +523,7 @@ contract ESG is IERC20, Auth {
     function setFees(uint256 _taxFee, uint256 _feeDenominator) external authorized {
         taxFee = _taxFee;
         feeDenominator = _feeDenominator;
-        require(taxFee < feeDenominator/4);
+        require(taxFee <= feeDenominator/4);
     }
     
     function setSportToken(address _address) external authorized {
@@ -512,8 +534,8 @@ contract ESG is IERC20, Auth {
         taxFeeReceiver = _taxFeeReceiver;
     }
 
-    function setSwapInToken(bool _swapInToken) external authorized {
-        swapInToken = _swapInToken;
+    function setTaxOption(uint8 _taxOption) external authorized {
+        taxOption = _taxOption;
     }
 
     function getCirculatingSupply() public view returns (uint256) {
