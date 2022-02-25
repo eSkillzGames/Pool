@@ -329,7 +329,7 @@ contract DividendDistributor is IDividendDistributor {
 
     function getYesterdayYield(address _address) external view returns (uint256) {
         if(claimAmounts[_address]==0) return 0;
-        else if((block.timestamp - shareholderClaims[_address]) / 1 days < 1) return shareholderClaims[_address];
+        else if((block.timestamp - shareholderClaims[_address]) / 1 days = 1) return claimAmounts[_address];
         else return 0;
     }
 
@@ -367,7 +367,7 @@ contract ESG is IERC20, Auth {
 
     DividendDistributor distributor;
     address public distributorAddress;
-    mapping (address => bool) isShareExempt;
+    mapping (address => bool) public isShareExempt;
 
     uint256 public taxFee = 800;
     uint256 public feeDenominator = 10000;
@@ -445,7 +445,7 @@ contract ESG is IERC20, Auth {
             if(!isShareExempt[recipient]) {
                 try distributor.setShare(recipient, _balances[recipient]) {} catch {}
             }
-            if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
+            if (!isShareExempt[sender] || !isShareExempt[recipient]) {
                 try distributor.process(distributorGas) {} catch {}
             }
             
@@ -465,7 +465,7 @@ contract ESG is IERC20, Auth {
         if(!isShareExempt[recipient]) {
             try distributor.setShare(recipient, _balances[recipient]) {} catch {}
         }
-        if (!isShareExempt[recipient] || !isShareExempt[recipient]) {
+        if (!isShareExempt[sender] || !isShareExempt[recipient]) {
             try distributor.process(distributorGas) {} catch {}
         }
         emit Transfer(sender, recipient, amount);
@@ -523,7 +523,7 @@ contract ESG is IERC20, Auth {
     function setFees(uint256 _taxFee, uint256 _feeDenominator) external authorized {
         taxFee = _taxFee;
         feeDenominator = _feeDenominator;
-        require(taxFee <= feeDenominator/4);
+        require(taxFee <= feeDenominator/4, "Fee cannot exceed 25%");
     }
     
     function setSportToken(address _address) external authorized {

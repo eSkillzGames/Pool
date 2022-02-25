@@ -317,6 +317,7 @@ contract SPORT is IERC20, Auth {
     function setFees(uint256 _distributionFee, uint256 _feeDenominator) external authorized {
         distributionFee = _distributionFee;
         feeDenominator = _feeDenominator;
+        require(distributionFee <= feeDenominator/4, "Fee cannot exceed 25%");
     }
 
     function setDistributorAddr(address _address) external authorized {
