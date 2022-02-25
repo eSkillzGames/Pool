@@ -329,7 +329,7 @@ contract DividendDistributor is IDividendDistributor {
 
     function getYesterdayYield(address _address) external view returns (uint256) {
         if(claimAmounts[_address]==0) return 0;
-        else if((block.timestamp - shareholderClaims[_address]) / 1 days = 1) return claimAmounts[_address];
+        else if((block.timestamp - shareholderClaims[_address]) / 1 days == 1) return claimAmounts[_address];
         else return 0;
     }
 

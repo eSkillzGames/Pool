@@ -164,7 +164,7 @@ contract SportTokenSale is Ownable {
         require(started, "token sale is not started");
         uint256 amount = calculateAmountPurchased(msg.value);
         require(amount <= sport.balanceOf(address(this)), "sold out");
-        require(sport.transfer(msg.sender, amount), "failed to claim");
+        require(sport.transfer(msg.sender, amount), "failed to buy");
     }
 
     fallback() external payable { buy(); }

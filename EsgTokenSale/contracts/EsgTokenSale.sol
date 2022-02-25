@@ -127,12 +127,9 @@ contract EsgTokenSale is Ownable {
     uint256 public price;
     uint256 public totalOwed;
     uint256 public weiRaised;
-    uint256 public airdropAmount;
-    mapping(address => bool) public airdropList;
 
     constructor (address addr) public { esg = IERC20(addr); }
     function setPrice(uint256 _price)       public onlyOwner { price = _price; }
-    function setAirdropAmount(uint256 _amount) public onlyOwner { airdropAmount = _amount; }
     function unlock() public onlyOwner { started =  false; }
 
     function withdrawETH(address payable _addr, uint256 amount) public onlyOwner {
@@ -159,19 +156,14 @@ contract EsgTokenSale is Ownable {
     function calculateAmountPurchased(uint256 _value) public view returns (uint256) {
         return _value.mul(BP).mul(price).div(10**9).div(BP);
     }
-    function airdrop() public {
-        require(airdropAmount > 0, "first set airdrop amount!");
-        require(!airdropList[msg.sender], "already airdroped");
-        require(esg.transfer(msg.sender, airdropAmount), "failed to airdrop");
-        airdropList[msg.sender] = true;
-    }
+    
     // purchase tokens
     function buy() public payable {
         require(started, "token sale is not started");
         uint256 amount = calculateAmountPurchased(msg.value);
         require(amount <= esg.balanceOf(address(this)), "sold out");
-        require(esg.transfer(msg.sender, amount), "failed to claim");
-        //totalOwed = totalOwed.add(amount);
+        require(esg.transfer(msg.sender, amount), "failed to buy");
+        totalOwed = totalOwed.add(amount);
         weiRaised = weiRaised.add(msg.value);
     }
 
